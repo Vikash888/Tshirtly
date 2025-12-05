@@ -1,0 +1,42 @@
+{
+  "rules": {
+    "orders": {
+      ".read": "auth != null",
+      ".indexOn": ["userId", "createdAt"],
+      "$orderId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['userId', 'userEmail', 'items', 'totalPrice', 'status', 'createdAt', 'updatedAt'])",
+        "userId": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "userEmail": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "items": {
+          ".validate": "newData.hasChildren()"
+        },
+        "totalPrice": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'processing' || newData.val() === 'shipped' || newData.val() === 'delivered' || newData.val() === 'cancelled')"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "isAdmin": {
+          ".validate": "newData.isBoolean()"
+        }
+      }
+    }
+  }
+}
