@@ -1,6 +1,8 @@
 // Add your admin email addresses here
 export const ADMIN_EMAILS = [
   'vikashspidey@gmail.com',
+  'arunkumardurai0707@gmail.com',
+  'santhoshsts9629@gmail.com',
   // Add more admin emails below:
 ];
 

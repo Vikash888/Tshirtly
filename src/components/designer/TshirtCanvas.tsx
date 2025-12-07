@@ -36,46 +36,47 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
   // Export function - high quality canvas only
   const exportToPNG = useCallback(() => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current || !controlsRef.current) return;
-    
+
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
-    
+
     // Store original camera position and controls target
     const originalPosition = camera.position.clone();
     const originalTarget = controls.target.clone();
-    
-    // Reset camera to straight front view
-    camera.position.set(0, 0, 5);
+
+    // Reset camera to straight view for the current side
+    const exportZ = designState.currentSide === 'back' ? -5 : 5;
+    camera.position.set(0, 0, exportZ);
     controls.target.set(0, 0, 0);
     controls.update();
-    
+
     // Store original size
     const originalWidth = renderer.domElement.width;
     const originalHeight = renderer.domElement.height;
-    
+
     // Render at higher resolution for export
     const exportWidth = 2048;
     const exportHeight = 2048;
     renderer.setSize(exportWidth, exportHeight, false);
     camera.aspect = exportWidth / exportHeight;
     camera.updateProjectionMatrix();
-    
+
     // Render the scene
     renderer.render(scene, camera);
     const dataURL = renderer.domElement.toDataURL('image/png', 1.0);
-    
+
     // Restore original camera position and controls
     camera.position.copy(originalPosition);
     controls.target.copy(originalTarget);
     controls.update();
-    
+
     // Restore original size
     renderer.setSize(originalWidth, originalHeight, false);
     camera.aspect = originalWidth / originalHeight;
     camera.updateProjectionMatrix();
-    
+
     // Download
     const link = document.createElement('a');
     link.download = `tshirt-design-${designState.currentSide}-${Date.now()}.png`;
@@ -184,12 +185,26 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
     }
   }, [designState.color]);
 
+  // Sync camera view with current side
+  useEffect(() => {
+    if (cameraRef.current && controlsRef.current) {
+      if (designState.currentSide === 'back') {
+        cameraRef.current.position.set(0, 0, -5);
+        cameraRef.current.lookAt(0, 0, 0);
+      } else {
+        cameraRef.current.position.set(0, 0, 5);
+        cameraRef.current.lookAt(0, 0, 0);
+      }
+      controlsRef.current.update();
+    }
+  }, [designState.currentSide]);
+
   // Update material texture
   useEffect(() => {
     if (!meshRef.current) return;
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
     const materialInfo = MATERIALS.find(m => m.type === designState.material);
-    
+
     if (materialInfo) {
       material.roughness = materialInfo.roughness;
       material.metalness = materialInfo.metalness;
@@ -228,68 +243,71 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
         const context = canvas.getContext('2d');
         if (!context) return;
 
-      canvas.width = 512;
-      canvas.height = 256;
+        canvas.width = 512;
+        canvas.height = 256;
 
-      // Apply flip if needed
-      if (textElement.flipped) {
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
-      }
+        // Apply flip if needed
+        if (textElement.flipped) {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
 
-      context.fillStyle = textElement.color;
-      const fontStyle = textElement.fontStyle === 'italic' ? 'italic' : '';
-      const fontWeight = textElement.fontWeight === 'bold' ? 'bold' : '';
-      context.font = `${fontStyle} ${fontWeight} ${textElement.fontSize * 200}px ${textElement.fontFamily}`.trim();
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      
-      // Draw underline if needed
-      if (textElement.textDecoration === 'underline') {
-        const metrics = context.measureText(textElement.text);
-        const textWidth = metrics.width;
-        const underlineY = canvas.height / 2 + textElement.fontSize * 100;
-        context.beginPath();
-        context.moveTo(canvas.width / 2 - textWidth / 2, underlineY);
-        context.lineTo(canvas.width / 2 + textWidth / 2, underlineY);
-        context.strokeStyle = textElement.color;
-        context.lineWidth = textElement.fontSize * 10;
-        context.stroke();
-      }
-      
-      context.fillText(textElement.text, canvas.width / 2, canvas.height / 2);
+        context.fillStyle = textElement.color;
+        const fontStyle = textElement.fontStyle === 'italic' ? 'italic' : '';
+        const fontWeight = textElement.fontWeight === 'bold' ? 'bold' : '';
+        context.font = `${fontStyle} ${fontWeight} ${textElement.fontSize * 200}px ${textElement.fontFamily}`.trim();
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
 
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.needsUpdate = true;
+        // Draw underline if needed
+        if (textElement.textDecoration === 'underline') {
+          const metrics = context.measureText(textElement.text);
+          const textWidth = metrics.width;
+          const underlineY = canvas.height / 2 + textElement.fontSize * 100;
+          context.beginPath();
+          context.moveTo(canvas.width / 2 - textWidth / 2, underlineY);
+          context.lineTo(canvas.width / 2 + textWidth / 2, underlineY);
+          context.strokeStyle = textElement.color;
+          context.lineWidth = textElement.fontSize * 10;
+          context.stroke();
+        }
 
-      const textGeometry = new THREE.PlaneGeometry(
-        textElement.fontSize * 4,
-        textElement.fontSize * 2
-      );
-      const textMaterial = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
-      const textMesh = new THREE.Mesh(textGeometry, textMaterial) as unknown as ElementMesh;
-      textMesh.position.set(textElement.x, textElement.y, textElement.z);
-      textMesh.rotation.z = (textElement.rotation * Math.PI) / 180;
-      textMesh.userData = {
-        elementId: textElement.id,
-        elementType: 'text',
-      };
-      
-      // Add selection border
-      if (designState.selectedElementId === textElement.id) {
-        const borderGeometry = new THREE.EdgesGeometry(textGeometry);
-        const borderMaterial = new THREE.LineBasicMaterial({ 
-          color: 0x0ea5e9, 
-          linewidth: 2 
+        context.fillText(textElement.text, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        const textGeometry = new THREE.PlaneGeometry(
+          textElement.fontSize * 4,
+          textElement.fontSize * 2
+        );
+        const textMaterial = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
         });
-        const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-        textMesh.add(border);
-      }
-      
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial) as unknown as ElementMesh;
+        textMesh.position.set(textElement.x, textElement.y, textElement.z);
+        textMesh.rotation.z = (textElement.rotation * Math.PI) / 180;
+        if (textElement.side === 'back') {
+          textMesh.rotation.y = Math.PI;
+        }
+        textMesh.userData = {
+          elementId: textElement.id,
+          elementType: 'text',
+        };
+
+        // Add selection border
+        if (designState.selectedElementId === textElement.id) {
+          const borderGeometry = new THREE.EdgesGeometry(textGeometry);
+          const borderMaterial = new THREE.LineBasicMaterial({
+            color: 0x0ea5e9,
+            linewidth: 2
+          });
+          const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+          textMesh.add(border);
+        }
+
         scene.add(textMesh);
       });
 
@@ -299,43 +317,46 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
       .forEach((imageElement) => {
         const textureLoader = new THREE.TextureLoader();
         textureLoader.load(imageElement.url, (texture) => {
-        const imageGeometry = new THREE.PlaneGeometry(
-          imageElement.width,
-          imageElement.height
-        );
-        const imageMaterial = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          side: THREE.DoubleSide,
-        });
-        const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial) as unknown as ElementMesh;
-        imageMesh.position.set(imageElement.x, imageElement.y, imageElement.z);
-        imageMesh.rotation.z = (imageElement.rotation * Math.PI) / 180;
-        
-        // Apply flip
-        if (imageElement.flipped) {
-          imageMesh.scale.x = -1;
-        }
-        
-        imageMesh.userData = {
-          elementId: imageElement.id,
-          elementType: 'image',
-        };
-        
-        // Add selection border
-        if (designState.selectedElementId === imageElement.id) {
-          const borderGeometry = new THREE.EdgesGeometry(imageGeometry);
-          const borderMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x0ea5e9, 
-            linewidth: 2 
+          const imageGeometry = new THREE.PlaneGeometry(
+            imageElement.width,
+            imageElement.height
+          );
+          const imageMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
           });
-          const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-          imageMesh.add(border);
-        }
-        
-        if (sceneRef.current) {
-          sceneRef.current.add(imageMesh);
-        }
+          const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial) as unknown as ElementMesh;
+          imageMesh.position.set(imageElement.x, imageElement.y, imageElement.z);
+          imageMesh.rotation.z = (imageElement.rotation * Math.PI) / 180;
+          if (imageElement.side === 'back') {
+            imageMesh.rotation.y = Math.PI;
+          }
+
+          // Apply flip
+          if (imageElement.flipped) {
+            imageMesh.scale.x = -1;
+          }
+
+          imageMesh.userData = {
+            elementId: imageElement.id,
+            elementType: 'image',
+          };
+
+          // Add selection border
+          if (designState.selectedElementId === imageElement.id) {
+            const borderGeometry = new THREE.EdgesGeometry(imageGeometry);
+            const borderMaterial = new THREE.LineBasicMaterial({
+              color: 0x0ea5e9,
+              linewidth: 2
+            });
+            const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+            imageMesh.add(border);
+          }
+
+          if (sceneRef.current) {
+            sceneRef.current.add(imageMesh);
+          }
         });
       });
   }, [designState.textElements, designState.imageElements, designState.selectedElementId, designState.currentSide]);
@@ -350,34 +371,34 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
 
   const getIntersectedElement = useCallback(() => {
     if (!cameraRef.current || !sceneRef.current) return null;
-    
+
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     const intersects = raycasterRef.current.intersectObjects(
       sceneRef.current.children.filter(obj => obj.userData.elementId),
       false
     );
-    
+
     return intersects.length > 0 ? intersects[0].object as ElementMesh : null;
   }, []);
 
   const handleMouseDown = useCallback((event: MouseEvent) => {
     if (!controlsRef.current) return;
-    
+
     getMousePosition(event);
     const intersectedElement = getIntersectedElement();
-    
+
     if (intersectedElement && intersectedElement.userData.elementId) {
       event.stopPropagation();
       setIsDragging(true);
       controlsRef.current.enabled = false;
-      
+
       // Select element
       setDesignState(prev => ({
         ...prev,
         selectedElementId: intersectedElement.userData.elementId,
         selectedElementType: intersectedElement.userData.elementType,
       }));
-      
+
       // Store offset
       dragOffsetRef.current.copy(intersectedElement.position);
     } else {
@@ -392,29 +413,29 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
 
   const handleMouseMove = useCallback((event: MouseEvent) => {
     if (!isDragging || !cameraRef.current || !sceneRef.current || !designState.selectedElementId) return;
-    
+
     getMousePosition(event);
-    
+
     // Find the selected element to get its Z position
     const selectedElement = sceneRef.current.children.find(
       obj => obj.userData.elementId === designState.selectedElementId
     ) as ElementMesh | undefined;
-    
+
     if (!selectedElement) return;
-    
+
     const currentZ = selectedElement.position.z;
-    
+
     // Create a plane at the element's Z position
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -currentZ);
     const intersectPoint = new THREE.Vector3();
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
-    
+
     if (intersectPoint) {
       // No boundary constraints - allow free positioning
       const newX = intersectPoint.x;
       const newY = intersectPoint.y;
-      
+
       if (designState.selectedElementType === 'text') {
         setDesignState(prev => ({
           ...prev,
@@ -461,9 +482,9 @@ export function TshirtCanvas({ designState, setDesignState, onExportReady }: Tsh
   }, [handleMouseDown, handleMouseMove, handleMouseUp]);
 
   return (
-    <div 
-      ref={mountRef} 
-      className={`w-full h-full ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`} 
+    <div
+      ref={mountRef}
+      className={`w-full h-full ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
     />
   );
 }

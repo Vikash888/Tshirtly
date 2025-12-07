@@ -71,7 +71,7 @@ export function ShapesPanel({ designState, setDesignState }: ShapesPanelProps) {
     const coloredSvg = shape.svg.replace('currentColor', shapeColor);
     const svgBlob = new Blob([coloredSvg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(svgBlob);
-    
+
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -81,13 +81,13 @@ export function ShapesPanel({ designState, setDesignState }: ShapesPanelProps) {
       if (ctx) {
         ctx.drawImage(img, 0, 0, 200, 200);
         const dataUrl = canvas.toDataURL('image/png');
-        
+
         const newShape: ImageElement = {
           id: Date.now().toString(),
           url: dataUrl,
           x: 0,
           y: 0,
-          z: designState.currentSide === 'front' ? -0.11 : 0.11,
+          z: designState.currentSide === 'front' ? 0.11 : -0.11,
           width: 0.8,
           height: 0.8,
           rotation: 0,
@@ -95,14 +95,14 @@ export function ShapesPanel({ designState, setDesignState }: ShapesPanelProps) {
           side: designState.currentSide,
           aspectRatio: 1,
         };
-        
+
         setDesignState((prev) => ({
           ...prev,
           imageElements: [...prev.imageElements, newShape],
           selectedElementId: newShape.id,
           selectedElementType: 'image',
         }));
-        
+
         toast({
           title: 'Shape added',
           description: `${shape.name} added to your design.`,

@@ -44,7 +44,7 @@ export function TextPanel({ designState, setDesignState }: TextPanelProps) {
       text: 'New Text',
       x: 0,
       y: 0,
-      z: designState.currentSide === 'front' ? -0.11 : 0.11,
+      z: designState.currentSide === 'front' ? 0.11 : -0.11,
       fontSize: 0.3,
       color: '#000000',
       fontFamily: 'Arial',
@@ -125,11 +125,10 @@ export function TextPanel({ designState, setDesignState }: TextPanelProps) {
             {designState.textElements.map((txt) => (
               <div
                 key={txt.id}
-                className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-                  selectedTextId === txt.id
+                className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${selectedTextId === txt.id
                     ? 'bg-primary/10 border-primary'
                     : 'hover:bg-muted/50'
-                }`}
+                  }`}
                 onClick={() => setDesignState(prev => ({
                   ...prev,
                   selectedElementId: txt.id,

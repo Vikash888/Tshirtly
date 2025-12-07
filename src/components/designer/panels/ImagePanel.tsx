@@ -43,7 +43,7 @@ export function ImagePanel({ designState, setDesignState }: ImagePanelProps) {
     const reader = new FileReader();
     reader.onload = (event) => {
       const url = event.target?.result as string;
-      
+
       // Load image to get aspect ratio
       const img = new Image();
       img.onload = () => {
@@ -53,7 +53,7 @@ export function ImagePanel({ designState, setDesignState }: ImagePanelProps) {
           url,
           x: 0,
           y: 0,
-          z: designState.currentSide === 'front' ? -0.11 : 0.11,
+          z: designState.currentSide === 'front' ? 0.11 : -0.11,
           width: 1,
           height: 1 / aspectRatio,
           rotation: 0,
@@ -146,11 +146,10 @@ export function ImagePanel({ designState, setDesignState }: ImagePanelProps) {
             {designState.imageElements.map((img) => (
               <div
                 key={img.id}
-                className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-                  selectedImageId === img.id
+                className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${selectedImageId === img.id
                     ? 'bg-primary/10 border-primary'
                     : 'hover:bg-muted/50'
-                }`}
+                  }`}
                 onClick={() => setDesignState(prev => ({
                   ...prev,
                   selectedElementId: img.id,

@@ -13,11 +13,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
+import { isAdmin as checkIsAdmin } from '@/lib/admin';
+
 export default function AdminPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const isAdmin = user?.email === 'vikashspidey@gmail.com';
+  const isAdmin = checkIsAdmin(user?.email);
 
   useEffect(() => {
     if (!loading && !isAdmin) {
